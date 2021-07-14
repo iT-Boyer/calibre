@@ -76,7 +76,7 @@ def create_search_internet_menu(callback, author=None):
     m = QMenu((
         _('Search the internet for the author {}').format(author)
         if author is not None else
-        _('Search the internet for this book')) + '…'
+        _('Search the internet for this book'))
     )
     m.menuAction().setIcon(QIcon(I('search.png')))
     items = all_book_searches() if author is None else all_author_searches()
@@ -151,19 +151,19 @@ def init_find_in_grouped_search(menu, field, value, book_info):
         m.addAction(QIcon(get_icon_path(field, '')),
                     _('in category %s')%escape_for_menu(field_name),
                     lambda g=field: book_info.search_requested(
-                            '{}:"={}"'.format(g, value.replace('"', r'\"'))))
+                            '{}:"={}"'.format(g, value.replace('"', r'\"')), ''))
         for gst in gsts_to_show:
             icon_path = get_icon_path(gst, '@')
             m.addAction(QIcon(icon_path),
                         _('in grouped search %s')%gst,
                         lambda g=gst: book_info.search_requested(
-                                '{}:"={}"'.format(g, value.replace('"', r'\"'))))
+                                '{}:"={}"'.format(g, value.replace('"', r'\"')), ''))
     else:
         menu.addAction(QIcon(I('search.png')),
             _('Search calibre for {val} in category {name}').format(
                     val=escape_for_menu(value), name=escape_for_menu(field_name)),
             lambda g=field: book_info.search_requested(
-                    '{}:"={}"'.format(g, value.replace('"', r'\"'))))
+                    '{}:"={}"'.format(g, value.replace('"', r'\"')), ''))
 
 
 def render_html(mi, vertical, widget, all_fields=False, render_data_func=None, pref_name='book_display_fields'):  # {{{
@@ -350,6 +350,9 @@ def add_item_specific_entries(menu, data, book_info, copy_menu, search_menu):
                 ac.current_url = value
                 ac.setText(_('&Identifier'))
                 copy_menu.addAction(ac)
+                if data.get('url'):
+                    book_info.copy_identifiers_url_action.current_url = data['url']
+                    copy_menu.addAction(book_info.copy_identifiers_url_action)
                 remove_value = data['id_type']
                 init_find_in_tag_browser(search_menu, find_action, field, remove_value)
                 init_find_in_grouped_search(search_menu, field, remove_value, book_info)
@@ -441,11 +444,11 @@ def details_context_menu_event(view, ev, book_info, add_popup_action=False, edit
         if not ac.isEnabled():
             menu.removeAction(ac)
     menu.addSeparator()
+    from calibre.gui2.ui import get_gui
     if add_popup_action:
-        ac = menu.addAction(_('Open the Book details window'))
-        ac.triggered.connect(book_info.show_book_info)
+        ema = get_gui().iactions['Show Book Details'].menuless_qaction
+        menu.addAction(_('Open the Book details window') + '\t' + ema.shortcut().toString(QKeySequence.SequenceFormat.NativeText), book_info.show_book_info)
     else:
-        from calibre.gui2.ui import get_gui
         ema = get_gui().iactions['Edit Metadata'].menuless_qaction
         menu.addAction(_('Open the Edit metadata window') + '\t' + ema.shortcut().toString(QKeySequence.SequenceFormat.NativeText), edit_metadata)
     if len(menu.actions()) > 0:
@@ -732,6 +735,9 @@ class BookInfo(HTMLDisplay):
         self.remove_item_action = ac = QAction(QIcon(I('minus.png')), '...', self)
         ac.data = (None, None, None)
         ac.triggered.connect(self.remove_item_triggered)
+        self.copy_identifiers_url_action = ac = QAction(QIcon(I('edit-copy.png')), _('Identifier &URL'), self)
+        ac.triggered.connect(self.copy_id_url_triggerred)
+        ac.current_url = ac.current_fmt = None
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setDefaultStyleSheet(css())
 
@@ -769,6 +775,10 @@ class BookInfo(HTMLDisplay):
 
     def copy_link_triggerred(self):
         self.context_action_triggered('copy_link')
+
+    def copy_id_url_triggerred(self):
+        if self.copy_identifiers_url_action.current_url:
+            self.copy_link.emit(self.copy_identifiers_url_action.current_url)
 
     def find_in_tag_browser_triggerred(self):
         if self.find_in_tag_browser_action.current_fmt:
@@ -908,7 +918,7 @@ class BookDetails(QWidget):  # {{{
     show_book_info = pyqtSignal()
     open_containing_folder = pyqtSignal(int)
     view_specific_format = pyqtSignal(int, object)
-    search_requested = pyqtSignal(object)
+    search_requested = pyqtSignal(object, object)
     remove_specific_format = pyqtSignal(int, object)
     remove_metadata_item = pyqtSignal(int, object, object)
     save_specific_format = pyqtSignal(int, object)
@@ -1020,7 +1030,14 @@ class BookDetails(QWidget):  # {{{
         typ, val = link.partition(':')[::2]
 
         def search_term(field, val):
-            self.search_requested.emit('{}:"={}"'.format(field, val.replace('"', '\\"')))
+            append = ''
+            if QApplication.instance().keyboardModifiers() & Qt.KeyboardModifier.ControlModifier:
+                append = 'OR'
+
+            self.search_requested.emit(
+                '{}:"={}"'.format(field, val.replace('"', '\\"')),
+                append
+            )
 
         def browse(url):
             try:

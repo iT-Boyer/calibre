@@ -25,7 +25,6 @@ from __python__ import hash_literals, bound_methods
 
 import traceback
 from elementmaker import E
-from gettext import gettext as _
 
 from dom import set_css
 from read_book.cfi import (
@@ -454,7 +453,7 @@ def previous_screen_location():
     if is_full_screen_layout:
         return -1
     cc = current_column_location()
-    ans = cc - screen_inline
+    ans = cc - cols_per_screen * col_and_gap
     if ans < 0:
         # We ignore small scrolls (less than 15px) when going to previous
         # screen
@@ -884,10 +883,7 @@ def resize_done():
 
 def auto_scroll_action(action):
     if action is 'toggle':
-        get_boss().send_message('error', title=_('No auto scroll in paged mode'), msg=_(
-            'Switch to flow mode (Viewer preferences->Page layout) to enable auto'
-            ' scrolling'), is_non_critical=True
-        )
+        get_boss().send_message('error', errkey='no-auto-scroll-in-paged-mode', is_non_critical=True)
     return False
 
 

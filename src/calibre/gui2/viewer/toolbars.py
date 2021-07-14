@@ -118,6 +118,12 @@ class ActionsToolBar(ToolBar):
         self.setObjectName('actions_toolbar')
         self.customContextMenuRequested.connect(self.show_context_menu)
 
+    def update_action_state(self, book_open):
+        for ac in self.shortcut_actions.values():
+            ac.setEnabled(book_open)
+        self.search_action.setEnabled(book_open)
+        self.color_scheme_action.setEnabled(book_open)
+
     def show_context_menu(self, pos):
         m = QMenu(self)
         a = m.addAction(_('Customize this toolbar'))
@@ -356,13 +362,16 @@ class ActionsList(QListWidget):
         for name in names:
             self.add_item_from_name(name)
 
+    def remove_item(self, item):
+        action = item.data(Qt.ItemDataRole.UserRole)
+        if action is not None or not self.is_source:
+            self.takeItem(self.row(item))
+        return action
+
     def remove_selected(self):
         ans = []
         for item in tuple(self.selectedItems()):
-            action = item.data(Qt.ItemDataRole.UserRole)
-            if action is not None or not self.is_source:
-                self.takeItem(self.row(item))
-            ans.append(action)
+            ans.append(self.remove_item(item))
         return ans
 
     def add_names(self, names):
@@ -388,7 +397,9 @@ class ConfigureToolBar(Dialog):
     def setup_ui(self):
         acnames = all_actions().all_action_names
         self.available_actions = ActionsList(acnames - frozenset(current_actions()), parent=self)
+        self.available_actions.itemDoubleClicked.connect(self.add_item)
         self.current_actions = ActionsList(current_actions(), parent=self, is_source=False)
+        self.current_actions.itemDoubleClicked.connect(self.remove_item)
         self.l = l = QVBoxLayout(self)
         self.la = la = QLabel(_('Choose the actions you want on the toolbar.'
             ' Drag and drop items in the right hand list to re-arrange the toolbar.'))
@@ -423,8 +434,16 @@ class ConfigureToolBar(Dialog):
         names = self.current_actions.remove_selected()
         self.available_actions.add_names(names)
 
+    def remove_item(self, item):
+        names = self.current_actions.remove_item(item),
+        self.available_actions.add_names(names)
+
     def add_actions(self):
         names = self.available_actions.remove_selected()
+        self.current_actions.add_names(names)
+
+    def add_item(self, item):
+        names = self.available_actions.remove_item(item),
         self.current_actions.add_names(names)
 
     def restore_defaults(self):

@@ -291,6 +291,7 @@ class LineEdit(QLineEdit, LineEditECM):
 
     def __init__(self, parent=None, completer_widget=None, sort_func=sort_key, strip_completion_entries=True):
         QLineEdit.__init__(self, parent)
+        self.setClearButtonEnabled(True)
 
         self.sep = ','
         self.space_before_sep = False
@@ -335,6 +336,9 @@ class LineEdit(QLineEdit, LineEditECM):
     @disable_popup.setter
     def disable_popup(self, val):
         self.mcompleter.disable_popup = bool(val)
+
+    def set_elide_mode(self, val):
+        self.mcompleter.setTextElideMode(val)
     # }}}
 
     def event(self, ev):
@@ -474,6 +478,12 @@ class EditWithComplete(EnComboBox):
     @disable_popup.setter
     def disable_popup(self, val):
         self.lineEdit().disable_popup = bool(val)
+
+    def set_elide_mode(self, val):
+        self.lineEdit().set_elide_mode(val)
+
+    def set_clear_button_enabled(self, val=True):
+        self.lineEdit().setClearButtonEnabled(bool(val))
     # }}}
 
     def text(self):

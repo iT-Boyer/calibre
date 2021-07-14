@@ -319,7 +319,7 @@ class MainTab(QWidget):  # {{{
         fl.addRow(options['port'].shortdoc + ':', sb)
         l.addSpacing(25)
         self.opt_auth = cb = QCheckBox(
-            _('Require &username and password to access the content server')
+            _('Require &username and password to access the Content server')
         )
         l.addWidget(cb)
         self.auth_desc = la = QLabel(self)
@@ -1169,7 +1169,7 @@ class SearchTheInternet(QWidget):
         cu = self.current_urls
         if cu:
             with lopen(search_the_net_urls.path, 'wb') as f:
-                f.write(self.serialized_urls)
+                f.write(self.serialized_urls.encode('utf-8'))
         else:
             try:
                 os.remove(search_the_net_urls.path)
@@ -1184,7 +1184,7 @@ class SearchTheInternet(QWidget):
             filters=[(_('URL files'), ['json'])], initial_filename='search-urls.json')
         if path:
             with lopen(path, 'wb') as f:
-                f.write(self.serialized_urls)
+                f.write(self.serialized_urls.encode('utf-8'))
 
     def import_urls(self):
         paths = choose_files(self, 'search-net-urls', _('Choose URLs file'),
@@ -1374,7 +1374,7 @@ class ConfigWidget(ConfigWidgetBase):
                     _('No users specified'),
                     _(
                         'You have turned on the setting to require passwords to access'
-                        ' the content server, but you have not created any user accounts.'
+                        ' the Content server, but you have not created any user accounts.'
                         ' Create at least one user account in the "User accounts" tab to proceed.'
                     ),
                     show=True

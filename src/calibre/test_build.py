@@ -38,17 +38,17 @@ class BuildTest(unittest.TestCase):
 
     @unittest.skipUnless(islinux, 'DBUS only used on linux')
     def test_dbus(self):
-        import dbus
+        from jeepney.io.blocking import open_dbus_connection
         if 'DBUS_SESSION_BUS_ADDRESS' in os.environ:
-            bus = dbus.SystemBus()
-            self.assertTrue(bus.list_names(), 'Failed to list names on the system bus')
-            bus = dbus.SessionBus()
-            self.assertTrue(bus.list_names(), 'Failed to list names on the session bus')
+            bus = open_dbus_connection(bus='SYSTEM')
+            bus.close()
+            bus = open_dbus_connection(bus='SESSION')
+            bus.close()
             del bus
 
     def test_loaders(self):
         import importlib
-        ldr = importlib.import_module('calibre').__spec__.loader
+        ldr = importlib.import_module('calibre').__spec__.loader.get_resource_reader()
         self.assertIn('ebooks', ldr.contents())
         try:
             raw = ldr.open_resource('__init__.py').read()
@@ -106,6 +106,8 @@ class BuildTest(unittest.TestCase):
 
     def test_zeroconf(self):
         import zeroconf as z, ifaddr
+        from calibre.devices.smart_device_app.driver import monkeypatch_zeroconf
+        monkeypatch_zeroconf()
         del z
         del ifaddr
 
@@ -477,6 +479,8 @@ def find_tests():
     from tinycss.tests.main import find_tests
     ans.addTests(find_tests())
     from calibre.spell.dictionary import find_tests
+    ans.addTests(find_tests())
+    from calibre.db.tests.fts import find_tests
     ans.addTests(find_tests())
     return ans
 

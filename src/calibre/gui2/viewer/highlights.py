@@ -8,17 +8,17 @@ from collections import defaultdict
 from functools import lru_cache
 from itertools import chain
 from qt.core import (
-    QColor, QFont, QHBoxLayout, QIcon, QImage, QItemSelectionModel, QKeySequence,
-    QLabel, QMenu, QPainter, QPainterPath, QPixmap, QPushButton, QRect, QSizePolicy,
-    Qt, QTextEdit, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget, pyqtSignal,
-    QAbstractItemView, QDialog, QPalette, QStyle
+    QAbstractItemView, QColor, QDialog, QFont, QHBoxLayout, QIcon, QImage,
+    QItemSelectionModel, QKeySequence, QLabel, QMenu, QPainter, QPainterPath,
+    QPalette, QPixmap, QPushButton, QRect, QSizePolicy, QStyle, Qt, QTextCursor,
+    QTextEdit, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget, pyqtSignal
 )
 
 from calibre.constants import (
     builtin_colors_dark, builtin_colors_light, builtin_decorations
 )
 from calibre.ebooks.epub.cfi.parse import cfi_sort_key
-from calibre.gui2 import error_dialog, is_dark_theme
+from calibre.gui2 import error_dialog, is_dark_theme, safe_open_url
 from calibre.gui2.dialogs.confirm_delete import confirm
 from calibre.gui2.library.annotations import (
     Details, Export as ExportBase, render_highlight_as_text, render_notes
@@ -381,6 +381,7 @@ class NotesEditDialog(Dialog):
         qte.setMinimumWidth(600)
         if self.initial_notes:
             qte.setPlainText(self.initial_notes)
+            qte.moveCursor(QTextCursor.MoveOperation.End)
         l.addWidget(qte)
         l.addWidget(self.bb)
 
@@ -396,7 +397,7 @@ class NotesDisplay(Details):
     def __init__(self, parent=None):
         Details.__init__(self, parent)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
-        self.anchorClicked.connect(self.edit_notes)
+        self.anchorClicked.connect(self.anchor_clicked)
         self.current_notes = ''
 
     def show_notes(self, text=''):
@@ -404,9 +405,16 @@ class NotesDisplay(Details):
         self.setVisible(bool(text))
         self.current_notes = text
         html = '\n'.join(render_notes(text))
-        self.setHtml('<div><a href="edit://moo" style="text-decoration: none">{}</a></div>{}'.format(_('Edit notes'), html))
+        self.setHtml('<div><a href="edit://moo">{}</a></div>{}'.format(_('Edit notes'), html))
+        self.document().setDefaultStyleSheet('a[href] { text-decoration: none }')
         h = self.document().size().height() + 2
         self.setMaximumHeight(h)
+
+    def anchor_clicked(self, qurl):
+        if qurl.scheme() == 'edit':
+            self.edit_notes()
+        else:
+            safe_open_url(qurl)
 
     def edit_notes(self):
         current_text = self.current_notes
@@ -421,6 +429,7 @@ class HighlightsPanel(QWidget):
     request_highlight_action = pyqtSignal(object, object)
     web_action = pyqtSignal(object, object)
     toggle_requested = pyqtSignal()
+    notes_edited_signal = pyqtSignal(object, object)
 
     def __init__(self, parent=None):
         QWidget.__init__(self, parent)
@@ -470,6 +479,7 @@ class HighlightsPanel(QWidget):
         if h is not None:
             h['notes'] = text
             self.web_action.emit('set-notes-in-highlight', h)
+            self.notes_edited_signal.emit(h['uuid'], text)
 
     def set_tooltips(self, rmap):
         a = rmap.get('create_annotation')

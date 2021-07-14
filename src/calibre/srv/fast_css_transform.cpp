@@ -25,6 +25,8 @@
 #include <frozen/unordered_map.h>
 #include <frozen/string.h>
 #include "../utils/cpp_binding.h"
+#define STB_SPRINTF_IMPLEMENTATION
+#include "../utils/stb_sprintf.h"
 
 // character classes {{{
 static inline bool
@@ -97,7 +99,7 @@ static const double base_font_size = 16.0, dpi = 96.0, pt_to_px = dpi / 72.0, pt
 
 static double
 convert_font_size(double val, double factor) {
-	return (factor == 0.0) ? val / base_font_size : (val * factor * pt_to_rem);
+	return (factor == 0.0) ? (val / base_font_size) : (val * factor * pt_to_rem);
 }
 
 static integer_type
@@ -242,7 +244,7 @@ class Token {
             out.push_back('\\');
             if (is_whitespace(ch) || is_hex_digit(ch)) {
                 char buf[8];
-                int num = std::snprintf(buf, sizeof(buf), "%x ", (unsigned int)ch);
+                int num = stbsp_snprintf(buf, sizeof(buf), "%x ", (unsigned int)ch);
                 if (num > 0) {
                     out.resize(out.size() + num);
                     for (int i = 0; i < num; i++) out[i + out.size() - num] = buf[i];
@@ -432,6 +434,11 @@ class Token {
             for (size_t i = 0; i < text.size(); i++) text[i] = src[i];
         }
 
+        void set_ascii_text(const char *txt, int sz) {
+            text.resize(sz);
+            for (int i = 0; i < sz; i++) text[i] = txt[i];
+        }
+
         bool convert_absolute_font_size(std::string &scratch) {
             if (!unit_at || !text_as_ascii_lowercase(scratch)) return false;
             frozen::string unit(scratch.data() + unit_at, scratch.size() - unit_at);
@@ -440,11 +447,11 @@ class Token {
             double val = parse_css_number<std::string>(scratch, unit_at).as_double();
             double new_val = convert_font_size(val, lit->second);
             if (val == new_val) return false;
-            scratch.reserve(128); scratch.clear(); scratch.resize(128);
-            int num = std::snprintf(&scratch[0], scratch.capacity(), "%grem", new_val);
+            char txt[128];
+            // stbsp_snprintf is locale independent unlike std::snprintf
+            int num = stbsp_snprintf(txt, sizeof(txt), "%grem", new_val);
             if (num <= 0) throw std::runtime_error("Failed to format font size");
-            scratch.resize(num);
-            set_text(scratch);
+            set_ascii_text(txt, num);
             return true;
         }
 
@@ -975,8 +982,7 @@ class Parser {
         }
 
         void handle_number() {
-            if (is_digit(ch)) { token_queue.add_char(ch); return; }
-            if (ch == '.' && is_digit(peek())) { pop_state(); enter_digits_mode(); return; }
+            if (is_digit(ch) || (ch == '.' && is_digit(peek()))) { token_queue.add_char(ch); return; }
             if (starting_comment()) { enter_comment_mode(); return; }
             if ((ch == 'e' || ch == 'E')) {
                 char32_t next = peek();

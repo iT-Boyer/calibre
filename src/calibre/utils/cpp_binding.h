@@ -14,7 +14,7 @@
 
 #define arraysz(x) (sizeof(x)/sizeof(x[0]))
 
-template<typename T, void free_T(void*), T null=reinterpret_cast<T>(NULL)>
+template<typename T, void free_T(void*), T null=static_cast<T>(NULL)>
 class generic_raii {
 	private:
 		generic_raii( const generic_raii & ) noexcept;
@@ -44,6 +44,34 @@ class generic_raii {
 typedef generic_raii<wchar_t*, PyMem_Free> wchar_raii;
 static inline void python_object_destructor(void *p) { PyObject *x = reinterpret_cast<PyObject*>(p); Py_XDECREF(x); }
 typedef generic_raii<PyObject*, python_object_destructor> pyobject_raii;
+
+template<typename T, void free_T(void*), size_t sz, T null=static_cast<T>(NULL)>
+class generic_raii_array {
+	private:
+		generic_raii_array( const generic_raii_array & ) noexcept;
+		generic_raii_array & operator=( const generic_raii_array & ) noexcept ;
+
+	protected:
+		T array[sz];
+
+	public:
+		explicit generic_raii_array() noexcept : array() {}
+		~generic_raii_array() noexcept { release(); }
+
+		void release() noexcept {
+			for (size_t i = 0; i < sz; i++) {
+				if (array[i] != null) {
+					free_T(array[i]);
+					array[i] = null;
+				}
+			}
+		}
+
+		T* ptr() noexcept { return reinterpret_cast<T*>(array); }
+		size_t size() const noexcept { return sz; }
+		T operator [](size_t i) noexcept { return array[i]; }
+		const T operator[](size_t i) const noexcept { return array[i]; }
+};
 
 
 static inline int

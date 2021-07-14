@@ -81,6 +81,7 @@ class DeleteBook:  # {{{
         set_css(container, background_color=get_color('window-background'))
         container.appendChild(E.div(
             style='display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%',
+            tabindex='0',
             E.div(style='margin:1ex 1em; max-width: 80%',
                 E.h2(self.question),
                 E.div(style='display:flex; justify-content:flex-end; margin-top:1rem',
@@ -88,8 +89,19 @@ class DeleteBook:  # {{{
                     E.span('\xa0'),
                     create_button(_('Cancel'), action=self.cancel),
                 )
-            )
+            ),
+            onkeyup=def(ev):
+                if ev.key is 'Escape':
+                    ev.stopPropagation(), ev.preventDefault()
+                    self.cancel()
+                elif ev.key is 'Enter' or ev.key is 'Return':
+                    ev.stopPropagation(), ev.preventDefault()
+                    self.delete_book()
         ))
+        window.setTimeout(self.focus_me, 0)
+
+    def focus_me(self):
+        document.getElementById(self.container_id).lastChild.focus()
 
     def show_working(self):
         container = document.getElementById(self.container_id)
@@ -212,8 +224,9 @@ add_extra_css(def():
     sel += '> li'
     style += build_rule(sel, border_right='1px solid currentColor', padding='0.5em 1ex', display='flex', flex_wrap='wrap', align_items='center', cursor='pointer')
     style += build_rule(sel + ':last-child', border_right_style='none')
-    style += build_rule(sel + ':hover > *:first-child', color=get_color('window-hover-foreground'))
-    style += build_rule(sel + ':active > *:first-child', transform='scale(1.8)')
+    style += build_rule(sel + ':hover > *:first-child, .main-overlay-button:hover > *:first-child',
+                        color=get_color('window-hover-foreground'))
+    style += build_rule(sel + ':active > *:first-child, .main-overlay-button:active > *:first-child', transform='scale(1.8)')
     style += f'@media screen and (max-width: 350px) {{ #{timer_id()} {{ display: none; }} }}'
     return style
 )
@@ -259,8 +272,8 @@ class MainOverlay:  # {{{
         sync_action = ac(_('Sync'), _('Get last read position and annotations from the server'), self.overlay.sync_book, 'cloud-download')
         delete_action = ac(_('Delete'), _('Delete this book from local storage'), self.overlay.delete_book, 'trash')
         reload_action = ac(_('Reload'), _('Reload this book from the {}').format( _('computer') if runtime.is_standalone_viewer else _('server')), self.overlay.reload_book, 'refresh')
-        back_action = ac(_('Back'), None, self.back, 'arrow-left')
-        forward_action = ac(_('Forward'), None, self.forward, 'arrow-right')
+        back_action = ac(_('Back'), _('Go back'), self.back, 'arrow-left')
+        forward_action = ac(_('Forward'), _('Go forward'), self.forward, 'arrow-right')
         nav_actions = E.ul(back_action, forward_action)
         if runtime.is_standalone_viewer:
             reload_actions = E.ul(
@@ -270,14 +283,13 @@ class MainOverlay:  # {{{
         else:
             reload_actions = E.ul(sync_action, delete_action, reload_action)
 
-        bookmarks_action = ac(_('Bookmarks'), None, self.overlay.show_bookmarks, 'bookmark')
+        bookmarks_action = ac(_('Bookmarks'), _('Browse all bookmarks'), self.overlay.show_bookmarks, 'bookmark')
         highlights_action = ac(
             _('Highlights'), _('Browse all highlights'), def():
                 self.overlay.show_highlights()
             , 'image')
 
-        toc_actions = E.ul(ac(_('Table of Contents'), None, self.overlay.show_toc, 'toc'))
-
+        toc_actions = E.ul(ac(_('Table of Contents'), _('Browse the Table of Contents'), self.overlay.show_toc, 'toc'))
         toc_actions.appendChild(ac(_('Reference mode'), _('Toggle the Reference mode'), self.overlay.toggle_reference_mode, 'reference-mode'))
 
         actions_div = E.div( # actions
@@ -312,7 +324,7 @@ class MainOverlay:  # {{{
         if runtime.is_standalone_viewer:
             text = _('Exit full screen') if runtime.viewer_in_full_screen else _('Enter full screen')
             full_screen_actions.push(
-                ac(text, '', def(): self.overlay.hide(), ui_operations.toggle_full_screen();, 'full-screen'))
+                ac(text, _('Toggle full screen mode'), def(): self.overlay.hide(), ui_operations.toggle_full_screen();, 'full-screen'))
             full_screen_actions.push(
                 ac(_('Print'), _('Print book to PDF'), def(): self.overlay.hide(), ui_operations.print_book();, 'print'))
         else:
@@ -419,7 +431,8 @@ class MainOverlay:  # {{{
                   style='position: fixed; width: 100%; bottom: 0; display: flex; justify-content: space-between; align-items: center;'
                         'user-select: none; background-color: {}'.format(get_color('window-background')),
                 E.div(
-                    style='display: flex; align-items: center; cursor: pointer; padding: 0.5ex 1rem',
+                    style='display: flex; align-items: center; cursor: pointer; padding: 0.5ex 1rem', class_='main-overlay-button',
+                    title=_('Close the viewer controls'),
                     svgicon('close', icon_size, icon_size), '\xa0', _('Close')
                 ),
                 E.div(style='padding: 0.5ex 1rem', '\xa0'), E.div(style='padding: 0.5ex 1rem', '\xa0'),
@@ -478,6 +491,8 @@ class TOCOverlay(SimpleOverlay): # {{{
         self.title = title or _('Table of Contents')
 
     def show(self, container):
+        container.appendChild(E.div())
+        container = container.firstChild
         simple_overlay_title(self.title, self.overlay, container)
         self.create_func(self.overlay.view.book, container, self.handle_activate)
 
@@ -767,7 +782,7 @@ class Overlay:
 
                 container.lastChild.appendChild(E.div(
                     style='text-align: right',
-                    E.a(_('Edit metadata of book in library'), class_='blue-link', onclick=def():
+                    E.a(_('Edit the metadata for this book in the library'), class_='blue-link', onclick=def():
                         container = document.getElementById(container_id)
                         clear(container)
                         container.appendChild(E.iframe(

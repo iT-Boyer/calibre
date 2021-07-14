@@ -23,6 +23,10 @@ class AbortCommit(Exception):
     pass
 
 
+class AbortInitialize(Exception):
+    pass
+
+
 class ConfigWidgetInterface(object):
 
     '''
@@ -59,7 +63,8 @@ class ConfigWidgetInterface(object):
     def initialize(self):
         '''
         Should set all config values to their initial values (the values
-        stored in the config files).
+        stored in the config files). A "return" statement is optional. Return
+        False if the dialog is not to be shown.
         '''
         raise NotImplementedError()
 
@@ -331,7 +336,7 @@ def init_gui():
     actions = tuple(Main.create_application_menubar())
     db = db()
     gui = Main(opts)
-    gui.initialize(db.library_path, db, None, actions, show_gui=False)
+    gui.initialize(db.library_path, db, actions, show_gui=False)
     return gui
 
 

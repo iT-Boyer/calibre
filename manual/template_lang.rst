@@ -13,7 +13,7 @@ The calibre template language is a calibre-specific language used throughout cal
 
 The language is built around the notion of a `template`, which specifies which book metadata to use, computations on that metadata, and how it is to be formatted.
 
-Basic Templates
+Basic templates
 ---------------
 
 A basic template consists one or more ``template expressions``. A ``template expression`` consists of text and names in curly brackets (``{}``) that is replaced by the corresponding metadata from the book being processed. For example, the default template in calibre used for saving books to device has 4 ``template expressions``::
@@ -254,7 +254,7 @@ Notes:
 * Strings and numbers can be used interchangeably. For example, ``10`` and ``'10'`` are the same thing.
 * Comments are lines starting with a '#' character. Comments beginning later in a line are not supported.
 
-**Operator Precedence**
+**Operator precedence**
 
 The operator precedence (order of evaluation) from highest (evaluated first) to lowest (evaluated last) is:
 
@@ -269,7 +269,7 @@ The operator precedence (order of evaluation) from highest (evaluated first) to 
 * Logical and (``&&``). This operator returns '1' if both the left-hand and right-hand expressions are True, or the empty string ``''`` if either is False. It is associative, evaluates left to right, and does `short-circuiting <https://chortle.ccsu.edu/java5/Notes/chap40/ch40_2.html>`_.
 * Logical or (``||``). This operator returns ``'1'`` if either the left-hand or right-hand expression is True, or ``''`` if both are False. It is associative, evaluates left to right, and does `short-circuiting <https://chortle.ccsu.edu/java5/Notes/chap40/ch40_2.html>`_. It is an `inclusive or`, returning ``'1'`` if both the left- and right-hand expressions are True.
 
-**Field References**
+**Field references**
 
 A ``field_reference`` evaluates to the value of the metadata field named by lookup name that follows the ``$`` or ``$$``. Using ``$`` is equivalent to using the ``field()`` function. Using ``$$`` is equivalent to using the ``raw_field`` function. Examples::
 
@@ -278,7 +278,7 @@ A ``field_reference`` evaluates to the value of the metadata field named by look
 * $$pubdate ==> raw_field('pubdate')
 * $$#my_int ==> raw_field('#my_int')
 
-**If Expressions**
+**If expressions**
 
 ``If`` expressions first evaluate the ``condition``. If the ``condition`` is True (a non-empty value) then the ``expression_list`` in the ``then`` clause is evaluated. If it is False then if present the ``expression_list`` in the ``elif`` or ``else`` clause is evaluated. The ``elif`` and ``else`` parts are optional. The words ``if``, ``then``, ``elif``, ``else``, and ``fi`` are reserved; you cannot use them as identifier names. You can put newlines and white space wherever they make sense. The ``condition`` is a ``top_expression`` not an ``expression_list``; semicolons are not allowed. The ``expression_lists`` are semicolon-separated sequences of ``top_expressions``. An ``if`` expression returns the result of the last ``top_expression`` in the evaluated ``expression_list``, or the empty string if no expression list was evaluated.
 
@@ -318,7 +318,7 @@ As a last example, this program returns the value of the ``series`` column if th
 
     program: field(if field('series') then 'series' else 'title' fi)
 
-**For Expressions**
+**For expressions**
 
 The ``for`` expression iterates over a list of values, processing them one at a time. The ``list_expression`` must evaluate to either a metadata field ``lookup name``, for example ``tags`` or ``#genre``, or a list of values. If the result is a valid ``lookup name`` then the field's value is fetched and the separator specified for that field type is used. If the result isn't a valid lookup name then it is assumed to be a list of values. The list is assumed to be separated by commas unless the optional keyword ``separator`` is supplied, in which case the list values must be separated by the result of evaluating the ``separator_expr``. Each value in the list is assigned to the specified variable then the ``expression_list`` is evaluated. You can use ``break`` to jump out of the loop, and ``continue`` to jump to the beginning of the loop for the next iteration.
 
@@ -337,7 +337,7 @@ If the original Genre is `History.Military, Science Fiction.Alternate History, R
 
 Note: the last line in the template, ``new_tags``, isn't strictly necessary in this case because ``for`` returns the value of the last top_expression in the expression list. The value of an assignment is the value of its expression, so the value of the ``for`` statement is what was assigned to ``new_tags``.
 
-**Relational Operators**
+**Relational operators**
 
 Relational operators return ``'1'`` if the comparison is true, otherwise the empty string ('').
 
@@ -360,7 +360,7 @@ Examples:
   * ``program: if 11 > 2 then 'yes' else 'no' fi`` returns ``'no'`` because the ``>`` operator does a lexical comparison.
   * ``program: if 11 ># 2 then 'yes' else 'no' fi`` returns ``'yes'`` because the ``>#`` operator does a numeric comparison.
 
-**Additional Available Functions**
+**Additional available functions**
 
 The following functions are available in addition to those described in :ref:`Single Function Mode <single_mode>`.
 
@@ -389,6 +389,16 @@ In `GPM` the functions described in `Single Function Mode` all require an additi
 * ``connected_device_uuid(storage_location_key)`` -- if a device is connected then return the device uuid (unique id), otherwise return the empty string. Each storage location on a device has a different uuid. The ``storage_location_key`` location names are ``'main'``, ``'carda'`` and ``'cardb'``. This function works only in the GUI.
 * ``current_library_name()`` -- return the last name on the path to the current calibre library.
 * ``current_library_path()`` -- return the full path to the current calibre library.
+* ``date_arithmetic(date, calc_spec, fmt)`` -- Calculate a new date from ``date`` using ``calc_spec``. Return the new date formatted according to optional ``fmt``: if not supplied then the result will be in ISO format. The calc_spec is a string formed by concatenating pairs of ``vW`` (``valueWhat``) where ``v`` is a possibly-negative number and W is one of the following letters:
+
+    * ``s``: add ``v`` seconds to ``date``
+    * ``m``: add ``v`` minutes to ``date``
+    * ``h``: add ``v`` hours to ``date``
+    * ``d``: add ``v`` days to ``date``
+    * ``w``: add ``v`` weeks to ``date``
+    * ``y``: add ``v`` years to ``date``, where a year is 365 days.
+
+  Example: ``'1s3d-1m'`` will add 1 second, add 3 days, and subtract 1 minute from ``date``.
 * ``days_between(date1, date2)`` -- return the number of days between ``date1`` and ``date2``. The number is positive if ``date1`` is greater than ``date2``, otherwise negative. If either ``date1`` or ``date2`` are not dates, the function returns the empty string.
 * ``divide(x, y)`` -- returns ``x / y``. Throws an exception if either ``x`` or ``y`` are not numbers. This function can usually be replaced by the ``/`` operator.
 * ``eval(string)`` -- evaluates the string as a program, passing the local variables. This permits using the template processor to construct complex results from local variables. In :ref:`Template Program Mode <template_mode>`, because the `{` and `}` characters are interpreted before the template is evaluated you must use `[[` for the `{` character and `]]` for the ``}`` character. They are converted automatically. Note also that prefixes and suffixes (the `|prefix|suffix` syntax) cannot be used in the argument to this function when using :ref:`Template Program Mode <template_mode>`.
@@ -530,7 +540,7 @@ In `TPM`, using ``{`` and ``}`` characters in string literals can lead to errors
 
 As with `General Program Mode`, for functions documented under :ref:`Single Function Mode <single_mode>` you must supply the value the function is to act upon as the first parameter in addition to the documented parameters. In `TPM` you can use ``$`` to access the value specified by the ``lookup name`` for the template expression.
 
-Stored General Program Mode Templates
+Stored general program mode templates
 ----------------------------------------
 
 :ref:`General Program Mode <general_mode>` supports saving templates and calling those templates from another template, much like calling stored functions. You save templates using :guilabel:`Preferences->Advanced->Template functions`. More information is provided in that dialog. You call a template the same way you call a function, passing positional arguments if desired. An argument can be any expression. Examples of calling a template, assuming the stored template is named ``foo``:

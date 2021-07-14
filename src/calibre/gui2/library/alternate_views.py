@@ -430,7 +430,7 @@ class CoverDelegate(QStyledItemDelegate):
             width = 0.75 * height
         else:
             width *= self.parent().logicalDpiX() * CM_TO_INCH
-        self.cover_size = QSize(width, height)
+        self.cover_size = QSize(int(width), int(height))
         self.title_height = 0
         if show_title:
             f = self.parent().font()
@@ -954,7 +954,7 @@ class GridView(QListView):
         m = self.model()
         try:
             index = m.db.row(book_id)
-        except (IndexError, ValueError, KeyError):
+        except (IndexError, ValueError, KeyError, AttributeError):
             return
         self.update(m.index(index, 0))
 
